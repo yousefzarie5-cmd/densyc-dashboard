@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { useAuth } from '@/components/auth-context'
 
 const activities = [
   {
@@ -55,6 +56,10 @@ const activities = [
 ]
 
 export function RecentActivityTable() {
+  const { user } = useAuth()
+  const isBlank = user?.email === 'blank@demo.com'
+  const displayActivities = isBlank ? [] : activities
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -94,7 +99,14 @@ export function RecentActivityTable() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {activities.map((activity) => (
+          {displayActivities.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                No recent activity.
+              </TableCell>
+            </TableRow>
+          )}
+          {displayActivities.map((activity) => (
             <TableRow key={activity.id} className="hover:bg-muted/50 transition-colors">
               <TableCell className="font-medium text-foreground">{activity.patient}</TableCell>
               <TableCell className="text-foreground">{activity.action}</TableCell>

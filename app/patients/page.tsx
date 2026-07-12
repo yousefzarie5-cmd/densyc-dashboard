@@ -5,6 +5,7 @@ import { DashboardLayout } from '@/components/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useAuth } from '@/components/auth-context'
 import { Plus, Download, Filter, CalendarIcon, Pencil, X } from 'lucide-react'
 import {
   Table,
@@ -131,10 +132,12 @@ export default function PatientsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [isClient, setIsClient] = useState(false)
   
-  // Filter states
   const [filterBy, setFilterBy] = useState<string>('')
   const [filterValue, setFilterValue] = useState<string>('')
   const [showFilterPanel, setShowFilterPanel] = useState(false)
+  
+  const { user } = useAuth()
+  const isBlank = user?.email === 'blank@demo.com'
 
   useEffect(() => {
     setIsClient(true)
@@ -164,6 +167,7 @@ export default function PatientsPage() {
 
   // Filter patients based on selected filters
   const filteredPatients = useMemo(() => {
+    if (isBlank) return []
     if (!filterBy || !filterValue || filterValue === 'All') {
       return patients
     }
@@ -321,7 +325,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">2,584</div>
+              <div className="text-2xl font-bold text-foreground">{isBlank ? '0' : '2,584'}</div>
               <p className="text-xs text-muted-foreground mt-1">All time</p>
             </CardContent>
           </Card>
@@ -330,8 +334,8 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Booked</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">1,842</div>
-              <p className="text-xs text-muted-foreground mt-1">71% conversion</p>
+              <div className="text-2xl font-bold text-foreground">{isBlank ? '0' : '1,842'}</div>
+              <p className="text-xs text-muted-foreground mt-1">{isBlank ? '0%' : '71%'} conversion</p>
             </CardContent>
           </Card>
           <Card className="border-border">
@@ -339,7 +343,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">456</div>
+              <div className="text-2xl font-bold text-foreground">{isBlank ? '0' : '456'}</div>
               <p className="text-xs text-muted-foreground mt-1">In follow-up</p>
             </CardContent>
           </Card>
@@ -348,7 +352,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Show Rate</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">85%</div>
+              <div className="text-2xl font-bold text-foreground">{isBlank ? '0%' : '85%'}</div>
               <p className="text-xs text-muted-foreground mt-1">Of booked</p>
             </CardContent>
           </Card>
@@ -357,7 +361,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Revenue</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">$89,240</div>
+              <div className="text-2xl font-bold text-foreground">{isBlank ? '$0' : '$89,240'}</div>
               <p className="text-xs text-muted-foreground mt-1">This month</p>
             </CardContent>
           </Card>

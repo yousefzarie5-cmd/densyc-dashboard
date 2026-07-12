@@ -4,6 +4,7 @@ import { Moon, Sun, Bell, Settings, LogOut } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { useAuth } from './auth-context'
+import { NotificationsDropdown } from './notifications-dropdown'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +17,7 @@ import { Button } from '@/components/ui/button'
 export function Navbar() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  const { role, setRole } = useAuth()
+  const { role } = useAuth()
 
   useEffect(() => {
     setMounted(true)
@@ -31,19 +32,10 @@ export function Navbar() {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Role Switcher */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="text-xs font-medium border-primary text-primary capitalize hidden md:flex">
-              Role: {role}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setRole('superadmin')}>Super Admin</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setRole('clinicadmin')}>Clinic Admin</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setRole('staff')}>Staff</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Role Display */}
+        <Button variant="outline" size="sm" className="text-xs font-medium border-primary text-primary capitalize hidden md:flex pointer-events-none">
+          Role: {role}
+        </Button>
         {/* Branch Selector */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -59,9 +51,7 @@ export function Navbar() {
         </DropdownMenu>
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon">
-          <Bell size={20} />
-        </Button>
+        <NotificationsDropdown />
 
         {/* Theme Toggle */}
         <Button
@@ -87,7 +77,10 @@ export function Navbar() {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={async () => {
+              await fetch('/auth/signout', { method: 'POST' })
+              window.location.href = '/login'
+            }}>
               <LogOut size={16} className="mr-2" />
               Logout
             </DropdownMenuItem>
