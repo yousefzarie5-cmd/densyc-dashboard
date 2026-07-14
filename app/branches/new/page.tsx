@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,8 +18,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import Link from 'next/link'
+import { getSupabaseBrowser } from '@/lib/supabase/client'
 
 export default function NewBranchPage() {
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -37,6 +42,40 @@ export default function NewBranchPage() {
 
   const cities = ['Cairo', 'Alexandria', 'Giza', 'Luxor', 'Aswan', 'Hurghada', 'Sharm El Sheikh']
 
+  const handleSave = async () => {
+    if (!formData.name || !formData.address) {
+      toast.error('Please fill in all required fields (Name and Address)')
+      return
+    }
+
+    setIsSubmitting(true)
+    const supabase = getSupabaseBrowser()
+
+    try {
+      const { error } = await supabase.from('branches').insert([{
+        name: formData.name,
+        address: formData.address,
+        city: formData.city,
+        country: formData.country,
+        phone: formData.phone,
+        email: formData.email,
+        working_hours: formData.workingHours,
+        manager: formData.manager,
+        status: formData.status,
+        description: formData.description,
+      }])
+
+      if (error) throw error
+
+      toast.success('Branch created successfully')
+      router.push('/branches')
+    } catch (error: any) {
+      console.error('Error inserting branch:', error)
+      toast.error(error.message || 'Failed to create branch')
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -51,9 +90,9 @@ export default function NewBranchPage() {
             <h1 className="text-3xl font-bold text-foreground">Add New Branch</h1>
             <p className="text-muted-foreground mt-1">Create a new clinic branch location</p>
           </div>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button className="bg-primary hover:bg-primary/90" onClick={handleSave} disabled={isSubmitting}>
             <Save className="w-4 h-4 mr-2" />
-            Create Branch
+            {isSubmitting ? 'Creating...' : 'Create Branch'}
           </Button>
         </div>
 
@@ -198,9 +237,9 @@ export default function NewBranchPage() {
           <Link href="/branches">
             <Button variant="outline">Cancel</Button>
           </Link>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button className="bg-primary hover:bg-primary/90" onClick={handleSave} disabled={isSubmitting}>
             <Save className="w-4 h-4 mr-2" />
-            Create Branch
+            {isSubmitting ? 'Creating...' : 'Create Branch'}
           </Button>
         </div>
       </div>

@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import Link from 'next/link'
+import { getSupabaseBrowser } from '@/lib/supabase/client'
 
 export default function NewClinicPage() {
   const router = useRouter()
@@ -48,12 +49,31 @@ export default function NewClinicPage() {
     }
 
     setIsSubmitting(true)
+    const supabase = getSupabaseBrowser()
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    toast.success('Clinic created successfully')
-    router.push('/clinics')
+    try {
+      const { error } = await supabase.from('clinics').insert([{
+        name: formData.name,
+        address: formData.address,
+        city: formData.city,
+        country: formData.country,
+        phone: formData.phone,
+        email: formData.email,
+        website: formData.website,
+        owner: formData.owner,
+        status: formData.status,
+        description: formData.description,
+      }])
+
+      if (error) throw error
+
+      toast.success('Clinic created successfully')
+      router.push('/clinics')
+    } catch (error: any) {
+      console.error('Error inserting clinic:', error)
+      toast.error(error.message || 'Failed to create clinic')
+      setIsSubmitting(false)
+    }
   }
 
   return (

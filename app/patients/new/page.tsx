@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { getSupabaseBrowser } from '@/lib/supabase/client'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,6 +20,8 @@ import {
 import Link from 'next/link'
 
 export default function NewPatientPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     // Moderator fields
     date: '',
@@ -59,6 +63,46 @@ export default function NewPatientPage() {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  const handleSave = async () => {
+    if (!formData.name) {
+      alert("Patient Name is required.")
+      return
+    }
+    setLoading(true)
+    const supabase = getSupabaseBrowser()
+    const { error } = await supabase.from('patients').insert([{
+      date: formData.date || null,
+      name: formData.name,
+      phone_number: formData.phoneNumber || null,
+      source: formData.source || null,
+      interest: formData.interest || null,
+      country: formData.country || null,
+      city: formData.city || null,
+      area: formData.area || null,
+      nearest_branch: formData.nearestBranch || null,
+      ad_id: formData.adId || null,
+      communication_through: formData.communicationThrough || null,
+      moderator_notes: formData.moderatorNotes || null,
+      receptionist_name: formData.receptionistName || null,
+      attempt1: formData.attempt1 || null,
+      attempt2: formData.attempt2 || null,
+      attempt3: formData.attempt3 || null,
+      booking_status: formData.bookingStatus || 'Pending',
+      show_no_show: formData.showNoShow || null,
+      reservation_date: formData.reservationDate || null,
+      rejection_feedback1: formData.rejectionFeedback1 || null,
+      rejection_feedback2: formData.rejectionFeedback2 || null,
+      quotation_amount: formData.quotationAmount ? parseFloat(formData.quotationAmount) : 0,
+      amount_paid: formData.amountPaid ? parseFloat(formData.amountPaid) : 0,
+    }])
+    setLoading(false)
+    if (error) {
+      alert("Failed to save patient: " + error.message)
+    } else {
+      router.push('/patients')
+    }
+  }
+
   const sources = ['Facebook', 'Instagram', 'Google Ads', 'TikTok', 'Referral', 'Walk-in', 'Website']
   const interests = ['Teeth Whitening', 'Dental Implants', 'Braces', 'Root Canal', 'Veneers', 'Cleaning', 'Wisdom Tooth', 'Crowns', 'Consultation', 'Emergency']
   const cities = ['Cairo', 'Alexandria', 'Giza', 'Luxor', 'Aswan', 'Hurghada', 'Sharm El Sheikh']
@@ -83,9 +127,9 @@ export default function NewPatientPage() {
             <h1 className="text-3xl font-bold text-foreground">Add New Patient</h1>
             <p className="text-muted-foreground mt-1">Enter patient lead information and tracking details</p>
           </div>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button className="bg-primary hover:bg-primary/90" onClick={handleSave} disabled={loading}>
             <Save className="w-4 h-4 mr-2" />
-            Save Patient
+            {loading ? 'Saving...' : 'Save Patient'}
           </Button>
         </div>
 
@@ -423,9 +467,9 @@ export default function NewPatientPage() {
           <Link href="/patients">
             <Button variant="outline">Cancel</Button>
           </Link>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button className="bg-primary hover:bg-primary/90" onClick={handleSave} disabled={loading}>
             <Save className="w-4 h-4 mr-2" />
-            Save Patient
+            {loading ? 'Saving...' : 'Save Patient'}
           </Button>
         </div>
       </div>

@@ -18,9 +18,6 @@ export default function Page() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [isClient, setIsClient] = useState(false)
   const { isAllBranches } = useClinic()
-  const { user } = useAuth()
-  
-  const isBlank = user?.email === 'blank@demo.com'
 
   useEffect(() => {
     setIsClient(true)
@@ -89,7 +86,7 @@ export default function Page() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{isBlank ? '0' : '2,584'}</div>
+              <div className="text-2xl font-bold text-foreground">0</div>
               <p className="text-xs text-muted-foreground mt-1">Total registered patients</p>
             </CardContent>
           </Card>
@@ -102,8 +99,8 @@ export default function Page() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{isBlank ? '0%' : '24.5%'}</div>
-              <p className="text-xs text-muted-foreground mt-1">{isBlank ? 'No data' : '+2.5% from last period'}</p>
+              <div className="text-2xl font-bold text-foreground">0%</div>
+              <p className="text-xs text-muted-foreground mt-1">No data</p>
             </CardContent>
           </Card>
 
@@ -115,7 +112,7 @@ export default function Page() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{isBlank ? '0' : '156'}</div>
+              <div className="text-2xl font-bold text-foreground">0</div>
               <p className="text-xs text-muted-foreground mt-1">In selected period</p>
             </CardContent>
           </Card>
@@ -128,7 +125,7 @@ export default function Page() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{isBlank ? '$0' : '$12,450'}</div>
+              <div className="text-2xl font-bold text-foreground">$0</div>
               <p className="text-xs text-muted-foreground mt-1">Ad spend in period</p>
             </CardContent>
           </Card>
@@ -141,8 +138,8 @@ export default function Page() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{isBlank ? '$0' : '$89,240'}</div>
-              <p className="text-xs text-muted-foreground mt-1">{isBlank ? 'No data' : '+18% from last period'}</p>
+              <div className="text-2xl font-bold text-foreground">$0</div>
+              <p className="text-xs text-muted-foreground mt-1">No data</p>
             </CardContent>
           </Card>
         </div>
@@ -167,10 +164,10 @@ export default function Page() {
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 {[
-                  { name: 'Main Branch', width: isBlank ? 0 : 92 },
-                  { name: 'Downtown Branch', width: isBlank ? 0 : 78 },
-                  { name: 'Uptown Branch', width: isBlank ? 0 : 64 },
-                  { name: 'West Side Branch', width: isBlank ? 0 : 55 },
+                  { name: 'Main Branch', width: 0 },
+                  { name: 'Downtown Branch', width: 0 },
+                  { name: 'Uptown Branch', width: 0 },
+                  { name: 'West Side Branch', width: 0 },
                 ].map((branch) => (
                   <div key={branch.name} className="flex items-center justify-between">
                     <span className="text-sm font-medium">{branch.name}</span>

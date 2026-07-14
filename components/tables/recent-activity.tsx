@@ -10,55 +10,10 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react'
-import { useAuth } from '@/components/auth-context'
-
-const activities = [
-  {
-    id: 1,
-    patient: 'John Anderson',
-    action: 'New Reservation',
-    clinic: 'Clinic 1',
-    status: 'confirmed',
-    date: '2024-12-15 10:30',
-  },
-  {
-    id: 2,
-    patient: 'Sarah Johnson',
-    action: 'Follow-up Call',
-    clinic: 'Clinic 2',
-    status: 'completed',
-    date: '2024-12-15 09:15',
-  },
-  {
-    id: 3,
-    patient: 'Mike Davis',
-    action: 'Initial Consultation',
-    clinic: 'Clinic 1',
-    status: 'pending',
-    date: '2024-12-15 14:00',
-  },
-  {
-    id: 4,
-    patient: 'Emily Wilson',
-    action: 'Treatment Plan',
-    clinic: 'Clinic 3',
-    status: 'completed',
-    date: '2024-12-14 16:45',
-  },
-  {
-    id: 5,
-    patient: 'David Brown',
-    action: 'Payment Received',
-    clinic: 'Clinic 2',
-    status: 'confirmed',
-    date: '2024-12-14 11:20',
-  },
-]
+const activities: any[] = []
 
 export function RecentActivityTable() {
-  const { user } = useAuth()
-  const isBlank = user?.email === 'blank@demo.com'
-  const displayActivities = isBlank ? [] : activities
+  const displayActivities = activities
 
   const getStatusIcon = (status: string) => {
     switch (status) {

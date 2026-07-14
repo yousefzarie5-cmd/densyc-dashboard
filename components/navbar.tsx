@@ -4,6 +4,7 @@ import { Moon, Sun, Bell, Settings, LogOut } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { useAuth } from './auth-context'
+import { getSupabaseBrowser } from '@/lib/supabase/client'
 import { NotificationsDropdown } from './notifications-dropdown'
 import {
   DropdownMenu,
@@ -78,7 +79,10 @@ export function Navbar() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={async () => {
-              await fetch('/auth/signout', { method: 'POST' })
+              // Clear the session client-side (reliably removes auth cookies),
+              // then hit the server route as a fallback, then hard-redirect.
+              try { await getSupabaseBrowser().auth.signOut() } catch {}
+              try { await fetch('/auth/signout', { method: 'POST' }) } catch {}
               window.location.href = '/login'
             }}>
               <LogOut size={16} className="mr-2" />

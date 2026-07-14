@@ -270,9 +270,9 @@ export default function SettingsPage() {
                 <CardDescription>Configure which features each role can access in the dashboard.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-8">
-                {(['superadmin', 'clinicadmin', 'staff'] as Role[]).map((r) => (
+                {(['Clinic Owner', 'Moderator', 'Receptionist'] as Role[]).map((r) => (
                   <div key={r} className="space-y-4">
-                    <h3 className="text-lg font-semibold capitalize border-b border-border pb-2">{r === 'superadmin' ? 'Super Admin' : r === 'clinicadmin' ? 'Clinic Admin' : 'Staff'} Permissions</h3>
+                    <h3 className="text-lg font-semibold capitalize border-b border-border pb-2">{r} Permissions</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       {[
                         { id: 'view_dashboard', label: 'View Dashboard' },
@@ -288,11 +288,12 @@ export default function SettingsPage() {
                           <Label className="text-sm font-medium cursor-pointer" htmlFor={`${r}-${perm.id}`}>{perm.label}</Label>
                           <Switch 
                             id={`${r}-${perm.id}`}
-                            checked={permissions[r].includes(perm.id as Permission)}
+                            checked={permissions[r]?.includes(perm.id as Permission) ?? false}
                             onCheckedChange={(checked) => {
+                              const currentPerms = permissions[r] || []
                               const newPerms = checked 
-                                ? [...permissions[r], perm.id as Permission]
-                                : permissions[r].filter(p => p !== perm.id)
+                                ? [...currentPerms, perm.id as Permission]
+                                : currentPerms.filter(p => p !== perm.id)
                               updatePermissions(r, newPerms)
                             }}
                           />

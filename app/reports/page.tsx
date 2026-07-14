@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/table'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import { format, subDays } from 'date-fns'
+import { format, subDays, parseISO } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
 import {
   Dialog,
@@ -36,51 +36,7 @@ import {
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-
-const revenueData = [
-  { month: 'Jan', revenue: 45000, adSpend: 8000, leads: 320 },
-  { month: 'Feb', revenue: 52000, adSpend: 9200, leads: 380 },
-  { month: 'Mar', revenue: 48000, adSpend: 8500, leads: 345 },
-  { month: 'Apr', revenue: 61000, adSpend: 11000, leads: 420 },
-  { month: 'May', revenue: 58000, adSpend: 10500, leads: 395 },
-  { month: 'Jun', revenue: 67000, adSpend: 12000, leads: 480 },
-  { month: 'Jul', revenue: 72000, adSpend: 13500, leads: 520 },
-  { month: 'Aug', revenue: 69000, adSpend: 12800, leads: 490 },
-  { month: 'Sep', revenue: 78000, adSpend: 14200, leads: 560 },
-  { month: 'Oct', revenue: 85000, adSpend: 15500, leads: 610 },
-  { month: 'Nov', revenue: 82000, adSpend: 14800, leads: 585 },
-  { month: 'Dec', revenue: 89240, adSpend: 16200, leads: 640 },
-]
-
-const sourceData = [
-  { name: 'Facebook', value: 2845, fill: 'var(--primary)' },
-  { name: 'Google Ads', value: 1920, fill: 'var(--chart-2)' },
-  { name: 'Instagram', value: 1540, fill: 'var(--chart-3)' },
-  { name: 'Referrals', value: 840, fill: 'var(--chart-4)' },
-  { name: 'TikTok', value: 620, fill: 'var(--chart-5)' },
-]
-
-// Leads per Ad ID data
-const adIdLeadsData = [
-  { adId: 'FB_001', platform: 'Facebook', leads: 245, spend: 3062.50, cpl: 12.50, status: 'active' },
-  { adId: 'FB_002', platform: 'Facebook', leads: 189, spend: 2268.00, cpl: 12.00, status: 'active' },
-  { adId: 'FB_003', platform: 'Facebook', leads: 156, spend: 2028.00, cpl: 13.00, status: 'paused' },
-  { adId: 'GA_001', platform: 'Google', leads: 89, spend: 4005.00, cpl: 45.00, status: 'active' },
-  { adId: 'GA_002', platform: 'Google', leads: 67, spend: 3015.00, cpl: 45.00, status: 'active' },
-  { adId: 'GA_003', platform: 'Google', leads: 42, spend: 945.00, cpl: 22.50, status: 'active' },
-  { adId: 'IG_001', platform: 'Instagram', leads: 178, spend: 1557.50, cpl: 8.75, status: 'active' },
-  { adId: 'IG_002', platform: 'Instagram', leads: 134, spend: 1172.50, cpl: 8.75, status: 'active' },
-  { adId: 'IG_003', platform: 'Instagram', leads: 98, spend: 857.50, cpl: 8.75, status: 'paused' },
-  { adId: 'TT_001', platform: 'TikTok', leads: 95, spend: 1425.00, cpl: 15.00, status: 'active' },
-  { adId: 'TT_002', platform: 'TikTok', leads: 72, spend: 1080.00, cpl: 15.00, status: 'active' },
-]
-
-const branchData = [
-  { branch: 'Main Branch', patients: 1245, revenue: 42400, leads: 520 },
-  { branch: 'Downtown Branch', patients: 856, revenue: 28200, leads: 380 },
-  { branch: 'Uptown Branch', patients: 623, revenue: 21800, leads: 290 },
-  { branch: 'West Side Branch', patients: 412, revenue: 14600, leads: 195 },
-]
+import { getSupabaseBrowser } from '@/lib/supabase/client'
 
 // Metric definitions and calculations
 const metricDefinitions = {
@@ -189,10 +145,18 @@ function MetricCard({
   )
 }
 
+const COLORS = ['var(--primary)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)']
+
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [isClient, setIsClient] = useState(false)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
+
+  const [isLoading, setIsLoading] = useState(true)
+  const [revenueData, setRevenueData] = useState<any[]>([])
+  const [sourceData, setSourceData] = useState<any[]>([])
+  const [adIdLeadsData, setAdIdLeadsData] = useState<any[]>([])
+  const [branchData, setBranchData] = useState<any[]>([])
 
   useEffect(() => {
     setIsClient(true)
@@ -202,16 +166,114 @@ export default function ReportsPage() {
     })
   }, [])
 
+  useEffect(() => {
+    async function fetchData() {
+      const supabase = getSupabaseBrowser()
+      try {
+        const { data: cDaily } = await supabase.from('campaign_daily_data').select('*')
+        const { data: cData } = await supabase.from('campaigns').select('*')
+        const { data: patients } = await supabase.from('patients').select('*')
+        const { data: branches } = await supabase.from('branches').select('name')
+
+        // Process revenueData (monthly)
+        const revMap: Record<string, any> = {}
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        monthNames.forEach(m => revMap[m] = { month: m, revenue: 0, adSpend: 0, leads: 0 })
+
+        ;(cDaily || []).forEach((d: any) => {
+          if (d.date) {
+            const m = format(parseISO(d.date), 'MMM')
+            if (revMap[m]) {
+              revMap[m].adSpend += (d.spend || 0)
+              revMap[m].leads += (d.results || 0)
+            }
+          }
+        })
+
+        ;(patients || []).forEach((p: any) => {
+          if (p.date || p.created_at) {
+            const m = format(parseISO(p.date || p.created_at), 'MMM')
+            if (revMap[m]) {
+              revMap[m].revenue += (p.amount_paid || 0)
+            }
+          }
+        })
+        setRevenueData(monthNames.map(m => revMap[m]).filter(d => d.adSpend > 0 || d.revenue > 0 || d.leads > 0))
+
+        // Process sourceData
+        const sMap: Record<string, number> = {}
+        ;(cData || []).forEach((c: any) => {
+          const campLeads = (cDaily || []).filter((d:any) => d.campaign_id === c.id).reduce((acc: number, d: any) => acc + (d.results || 0), 0)
+          const p = c.platform || 'Unknown'
+          sMap[p] = (sMap[p] || 0) + campLeads
+        })
+        const sArray = Object.entries(sMap).map(([name, value], i) => ({ name, value, fill: COLORS[i % COLORS.length] })).filter(d => d.value > 0)
+        setSourceData(sArray)
+
+        // Process adIdLeadsData
+        const adMap: Record<string, any> = {}
+        ;(cDaily || []).forEach((d: any) => {
+          if (d.ad_id_spend) {
+            const c = (cData || []).find((c: any) => c.id === d.campaign_id)
+            if (!adMap[d.ad_id_spend]) {
+              adMap[d.ad_id_spend] = {
+                adId: d.ad_id_spend,
+                platform: c?.platform || 'Unknown',
+                leads: 0,
+                spend: 0,
+                status: c?.status || 'active'
+              }
+            }
+            adMap[d.ad_id_spend].leads += (d.results || 0)
+            adMap[d.ad_id_spend].spend += (d.spend || 0)
+          }
+        })
+        const adArray = Object.values(adMap).map((a: any) => ({
+          ...a,
+          cpl: a.leads > 0 ? a.spend / a.leads : 0
+        }))
+        setAdIdLeadsData(adArray)
+
+        // Process branchData
+        const bMap: Record<string, any> = {}
+        ;(branches || []).forEach((b: any) => {
+          bMap[b.name] = { branch: b.name, patients: 0, revenue: 0, leads: 0 }
+        })
+        ;(patients || []).forEach((p: any) => {
+          const bName = p.nearest_branch || 'Unknown'
+          if (!bMap[bName]) bMap[bName] = { branch: bName, patients: 0, revenue: 0, leads: 0 }
+          bMap[bName].patients += 1
+          bMap[bName].revenue += (p.amount_paid || 0)
+          // Rough proxy: every patient is a lead
+          bMap[bName].leads += 1
+        })
+        setBranchData(Object.values(bMap).filter(b => b.patients > 0 || b.revenue > 0))
+
+      } catch (err) {
+        console.error('Error fetching reports data:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
   // Calculate key metrics
   const totalRevenue = revenueData.reduce((acc, d) => acc + d.revenue, 0)
   const totalAdSpend = revenueData.reduce((acc, d) => acc + d.adSpend, 0)
   const totalLeads = revenueData.reduce((acc, d) => acc + d.leads, 0)
   const totalPatients = branchData.reduce((acc, b) => acc + b.patients, 0)
   
-  // Customer Acquisition Cost = Total Ad Spend / Total New Patients (converted leads)
-  // Assuming 24.5% conversion rate
-  const convertedPatients = Math.round(totalLeads * 0.245)
+  const convertedPatients = Math.round(totalLeads * 0.245) || 1 // fallback to avoid NaN/Infinity
   const cac = totalAdSpend / convertedPatients
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-full">Loading reports...</div>
+      </DashboardLayout>
+    )
+  }
 
   // Export to Excel
   const exportToExcel = () => {

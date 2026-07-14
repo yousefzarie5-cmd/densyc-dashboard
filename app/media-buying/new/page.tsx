@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import Link from 'next/link'
+import { getSupabaseBrowser } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 interface DailyData {
   id: number
@@ -46,6 +49,8 @@ interface AdIdEntry {
 }
 
 export default function NewCampaignPage() {
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [campaignName, setCampaignName] = useState('')
   const [platform, setPlatform] = useState('')
   const [resultType, setResultType] = useState('')
@@ -145,6 +150,81 @@ export default function NewCampaignPage() {
   const avgCPR = totals.results > 0 ? totals.spend / totals.results : 0
   const avgCTR = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0
 
+  const handleSave = async () => {
+    if (!campaignName || !platform || !resultType) {
+      toast.error('Please fill out campaign name, platform, and result type.')
+      return
+    }
+
+    setIsSubmitting(true)
+    const supabase = getSupabaseBrowser()
+
+    try {
+      // 1. Insert campaign
+      const { data: campaignData, error: campaignError } = await supabase
+        .from('campaigns')
+        .insert([{
+          campaign_name: campaignName,
+          platform,
+          result_type: resultType,
+          status
+        }])
+        .select()
+        .single()
+
+      if (campaignError) throw campaignError
+      const campaignId = campaignData.id
+
+      // 2. Insert Ad IDs
+      const validAdIds = adIds.filter(a => a.adId.trim() !== '')
+      if (validAdIds.length > 0) {
+        const { error: adError } = await supabase
+          .from('campaign_ad_ids')
+          .insert(
+            validAdIds.map((a, i) => ({
+              campaign_id: campaignId,
+              ad_id: a.adId,
+              link: a.link || null,
+              daily_spend: a.dailySpend ? Number(a.dailySpend) : 0,
+              position: i
+            }))
+          )
+        if (adError) throw adError
+      }
+
+      // 3. Insert Daily Data
+      const validDailyData = dailyData.filter(d => d.date)
+      if (validDailyData.length > 0) {
+        const { error: dailyError } = await supabase
+          .from('campaign_daily_data')
+          .insert(
+            validDailyData.map((d, i) => ({
+              campaign_id: campaignId,
+              day: d.day,
+              date: d.date,
+              ad_id_spend: d.adIdSpend || null,
+              results: d.results,
+              cpr: d.cpr,
+              spend: d.spend,
+              impressions: d.impressions,
+              clicks: d.clicks,
+              ctr: d.ctr,
+              position: i
+            }))
+          )
+        if (dailyError) throw dailyError
+      }
+
+      toast.success('Campaign saved successfully')
+      router.push('/media-buying')
+    } catch (error: any) {
+      console.error('Error saving campaign:', error)
+      toast.error(error.message || 'Failed to save campaign')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -159,9 +239,9 @@ export default function NewCampaignPage() {
             <h1 className="text-3xl font-bold text-foreground">Add New Campaign</h1>
             <p className="text-muted-foreground mt-1">Create a new advertising campaign with daily performance tracking</p>
           </div>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button className="bg-primary hover:bg-primary/90" onClick={handleSave} disabled={isSubmitting}>
             <Save className="w-4 h-4 mr-2" />
-            Save Campaign
+            {isSubmitting ? 'Saving...' : 'Save Campaign'}
           </Button>
         </div>
 
@@ -519,9 +599,9 @@ export default function NewCampaignPage() {
           <Link href="/media-buying">
             <Button variant="outline">Cancel</Button>
           </Link>
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button className="bg-primary hover:bg-primary/90" onClick={handleSave} disabled={isSubmitting}>
             <Save className="w-4 h-4 mr-2" />
-            Save Campaign
+            {isSubmitting ? 'Saving...' : 'Save Campaign'}
           </Button>
         </div>
       </div>

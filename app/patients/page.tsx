@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/components/auth-context'
+import { getSupabaseBrowser } from '@/lib/supabase/client'
 import { Plus, Download, Filter, CalendarIcon, Pencil, X } from 'lucide-react'
 import {
   Table,
@@ -28,72 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-// Seeded PRNG so server and client generate identical sample data (avoids hydration mismatch)
-const seededRandom = (() => {
-  let seed = 0x9e3779b9
-  return () => {
-    seed |= 0
-    seed = (seed + 0x6d2b79f5) | 0
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-})()
-
-// Generate 50 sample patients
-const generatePatients = () => {
-  const sources = ['Facebook', 'Instagram', 'Google Ads', 'TikTok', 'Referral']
-  const interests = ['Teeth Whitening', 'Dental Implants', 'Braces', 'Root Canal', 'Veneers', 'Cleaning', 'Wisdom Tooth', 'Crowns']
-  const cities = ['Cairo', 'Alexandria', 'Giza', 'Luxor', 'Aswan']
-  const areas = ['Nasr City', 'Maadi', 'Heliopolis', 'Zamalek', 'New Cairo', 'Smouha', '6th October', 'Dokki']
-  const branches = ['Main Branch', 'Downtown Branch', 'Uptown Branch', 'West Side Branch']
-  const receptionists = ['Sara Ahmed', 'Mohamed Karim', 'Nour Hassan', 'Layla Mostafa']
-  const communications = ['WhatsApp', 'Phone Call', 'SMS']
-  const bookingStatuses = ['Booked', 'Pending', 'Rejected']
-  const attempts = ['Called - No Answer', 'Called - Interested', 'Called - Booked', 'Called - Declined', 'Message Sent', '-']
-  const firstNames = ['Ahmed', 'Fatima', 'Omar', 'Mona', 'Khaled', 'Layla', 'Tarek', 'Heba', 'Youssef', 'Nadia', 'Hassan', 'Sara', 'Ali', 'Dina', 'Mohamed']
-  const lastNames = ['Hassan', 'Ali', 'Mahmoud', 'Ibrahim', 'Youssef', 'Mostafa', 'Salah', 'Adel', 'Karim', 'Nour', 'Fathy', 'Rady', 'Samy', 'Gamal', 'Farouk']
-
-  const patients = []
-  for (let i = 1; i <= 50; i++) {
-    const source = sources[Math.floor(seededRandom() * sources.length)]
-    const bookingStatus = bookingStatuses[Math.floor(seededRandom() * bookingStatuses.length)]
-    const isBooked = bookingStatus === 'Booked'
-    const showNoShow = isBooked ? (seededRandom() > 0.15 ? 'Show' : 'No-show') : '-'
-    const quotation = isBooked ? Math.floor(seededRandom() * 25000) + 500 : 0
-    const paid = showNoShow === 'Show' ? Math.floor(quotation * (seededRandom() * 0.5 + 0.3)) : 0
-
-    patients.push({
-      id: i,
-      date: `2024-12-${String(15 - Math.floor(i / 4)).padStart(2, '0')}`,
-      name: `${firstNames[Math.floor(seededRandom() * firstNames.length)]} ${lastNames[Math.floor(seededRandom() * lastNames.length)]}`,
-      phoneNumber: `+20 ${100 + Math.floor(seededRandom() * 99)} ${String(Math.floor(seededRandom() * 1000)).padStart(3, '0')} ${String(Math.floor(seededRandom() * 10000)).padStart(4, '0')}`,
-      source,
-      interest: interests[Math.floor(seededRandom() * interests.length)],
-      country: 'Egypt',
-      city: cities[Math.floor(seededRandom() * cities.length)],
-      area: areas[Math.floor(seededRandom() * areas.length)],
-      nearestBranch: branches[Math.floor(seededRandom() * branches.length)],
-      adId: `${source.substring(0, 2).toUpperCase()}_${String(i).padStart(3, '0')}`,
-      moderatorNotes: seededRandom() > 0.5 ? ['Interested in package', 'Price sensitive', 'VIP referral', 'Urgent case', 'Follow up needed'][Math.floor(seededRandom() * 5)] : '-',
-      communicationThrough: communications[Math.floor(seededRandom() * communications.length)],
-      receptionistName: receptionists[Math.floor(seededRandom() * receptionists.length)],
-      attempt1: attempts[Math.floor(seededRandom() * attempts.length)],
-      attempt2: seededRandom() > 0.4 ? attempts[Math.floor(seededRandom() * attempts.length)] : '-',
-      attempt3: seededRandom() > 0.7 ? attempts[Math.floor(seededRandom() * attempts.length)] : '-',
-      bookingStatus,
-      showNoShow,
-      reservationDate: isBooked ? `2024-12-${String(16 + Math.floor(seededRandom() * 10)).padStart(2, '0')}` : '-',
-      rejectionFeedback1: bookingStatus === 'Rejected' ? ['Too expensive', 'Not ready', 'Found elsewhere'][Math.floor(seededRandom() * 3)] : '-',
-      rejectionFeedback2: bookingStatus === 'Rejected' && seededRandom() > 0.5 ? 'Will think about it' : '-',
-      quotationAmount: quotation,
-      amountPaid: paid,
-    })
-  }
-  return patients
-}
-
-const patients = generatePatients()
+// Removed seededRandom and generatePatients()
 
 const getBookingStatusColor = (status: string) => {
   switch (status) {
@@ -136,8 +72,9 @@ export default function PatientsPage() {
   const [filterValue, setFilterValue] = useState<string>('')
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   
+  const [patients, setPatients] = useState<any[]>([])
+  
   const { user } = useAuth()
-  const isBlank = user?.email === 'blank@demo.com'
 
   useEffect(() => {
     setIsClient(true)
@@ -145,6 +82,47 @@ export default function PatientsPage() {
       from: subDays(new Date(), 30),
       to: new Date(),
     })
+
+    const fetchPatients = async () => {
+      const supabase = getSupabaseBrowser()
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        console.error('Error fetching patients:', error)
+      } else if (data) {
+        const mappedData = data.map(p => ({
+          id: p.id,
+          date: p.date,
+          name: p.name,
+          phoneNumber: p.phone_number || '-',
+          source: p.source || '-',
+          interest: p.interest || '-',
+          country: p.country || '-',
+          city: p.city || '-',
+          area: p.area || '-',
+          nearestBranch: p.nearest_branch || '-',
+          adId: p.ad_id || '-',
+          moderatorNotes: p.moderator_notes || '-',
+          communicationThrough: p.communication_through || '-',
+          receptionistName: p.receptionist_name || '-',
+          attempt1: p.attempt1 || '-',
+          attempt2: p.attempt2 || '-',
+          attempt3: p.attempt3 || '-',
+          bookingStatus: p.booking_status,
+          showNoShow: p.show_no_show || '-',
+          reservationDate: p.reservation_date || '-',
+          rejectionFeedback1: p.rejection_feedback1 || '-',
+          rejectionFeedback2: p.rejection_feedback2 || '-',
+          quotationAmount: p.quotation_amount || 0,
+          amountPaid: p.amount_paid || 0,
+        }))
+        setPatients(mappedData)
+      }
+    }
+    fetchPatients()
   }, [])
 
   // Get available filter values based on selected filter type
@@ -167,7 +145,6 @@ export default function PatientsPage() {
 
   // Filter patients based on selected filters
   const filteredPatients = useMemo(() => {
-    if (isBlank) return []
     if (!filterBy || !filterValue || filterValue === 'All') {
       return patients
     }
@@ -325,7 +302,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{isBlank ? '0' : '2,584'}</div>
+              <div className="text-2xl font-bold text-foreground">0</div>
               <p className="text-xs text-muted-foreground mt-1">All time</p>
             </CardContent>
           </Card>
@@ -334,8 +311,8 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Booked</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{isBlank ? '0' : '1,842'}</div>
-              <p className="text-xs text-muted-foreground mt-1">{isBlank ? '0%' : '71%'} conversion</p>
+              <div className="text-2xl font-bold text-foreground">0</div>
+              <p className="text-xs text-muted-foreground mt-1">0% conversion</p>
             </CardContent>
           </Card>
           <Card className="border-border">
@@ -343,7 +320,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{isBlank ? '0' : '456'}</div>
+              <div className="text-2xl font-bold text-foreground">0</div>
               <p className="text-xs text-muted-foreground mt-1">In follow-up</p>
             </CardContent>
           </Card>
@@ -352,7 +329,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Show Rate</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{isBlank ? '0%' : '85%'}</div>
+              <div className="text-2xl font-bold text-foreground">0%</div>
               <p className="text-xs text-muted-foreground mt-1">Of booked</p>
             </CardContent>
           </Card>
@@ -361,7 +338,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Revenue</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{isBlank ? '$0' : '$89,240'}</div>
+              <div className="text-2xl font-bold text-foreground">$0</div>
               <p className="text-xs text-muted-foreground mt-1">This month</p>
             </CardContent>
           </Card>

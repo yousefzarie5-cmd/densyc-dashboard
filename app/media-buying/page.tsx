@@ -37,166 +37,131 @@ import {
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import Link from 'next/link'
+import { getSupabaseBrowser } from '@/lib/supabase/client'
 
-// Sample campaign data
-const campaigns = [
-  {
-    id: 1,
-    name: 'Facebook Leads - Teeth Whitening',
-    platform: 'Facebook',
-    resultType: 'Messages',
-    results: 245,
-    cpr: 12.50,
-    spend: 3062.50,
-    impressions: 45000,
-    clicks: 1200,
-    ctr: 2.67,
-    status: 'active',
-    adIds: ['FB_001', 'FB_002', 'FB_003'],
-  },
-  {
-    id: 2,
-    name: 'Google Ads - Dental Implants',
-    platform: 'Google',
-    resultType: 'Leads',
-    results: 89,
-    cpr: 45.00,
-    spend: 4005.00,
-    impressions: 28000,
-    clicks: 560,
-    ctr: 2.00,
-    status: 'active',
-    adIds: ['GA_001', 'GA_002'],
-  },
-  {
-    id: 3,
-    name: 'Instagram DM - Braces Promo',
-    platform: 'Instagram',
-    resultType: 'Messages',
-    results: 178,
-    cpr: 8.75,
-    spend: 1557.50,
-    impressions: 62000,
-    clicks: 2100,
-    ctr: 3.39,
-    status: 'active',
-    adIds: ['IG_001', 'IG_002', 'IG_003', 'IG_004'],
-  },
-  {
-    id: 4,
-    name: 'Facebook - General Awareness',
-    platform: 'Facebook',
-    resultType: 'Profile Visits',
-    results: 1250,
-    cpr: 1.20,
-    spend: 1500.00,
-    impressions: 125000,
-    clicks: 3750,
-    ctr: 3.00,
-    status: 'paused',
-    adIds: ['FB_004', 'FB_005'],
-  },
-  {
-    id: 5,
-    name: 'TikTok - Veneers Showcase',
-    platform: 'TikTok',
-    resultType: 'Messages',
-    results: 95,
-    cpr: 15.00,
-    spend: 1425.00,
-    impressions: 89000,
-    clicks: 4200,
-    ctr: 4.72,
-    status: 'active',
-    adIds: ['TT_001', 'TT_002'],
-  },
-  {
-    id: 6,
-    name: 'Google Ads - Emergency Dental',
-    platform: 'Google',
-    resultType: 'Leads',
-    results: 42,
-    cpr: 22.50,
-    spend: 945.00,
-    impressions: 15000,
-    clicks: 280,
-    ctr: 1.87,
-    status: 'active',
-    adIds: ['GA_003'],
-  },
-]
-
-// Platform-specific result types breakdown
-const platformResultsData = {
-  Facebook: {
-    color: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-    results: [
-      { type: 'Leads', count: 156, cpr: 14.50 },
-      { type: 'Messages', count: 245, cpr: 12.50 },
-      { type: 'Profile Visits', count: 1250, cpr: 1.20 },
-    ],
-    totalSpend: 4562.50,
-  },
-  Google: {
-    color: 'bg-red-500/10 text-red-600 border-red-500/20',
-    results: [
-      { type: 'Leads', count: 131, cpr: 37.79 },
-      { type: 'Website Clicks', count: 840, cpr: 5.90 },
-      { type: 'Phone Calls', count: 45, cpr: 22.00 },
-    ],
-    totalSpend: 4950.00,
-  },
-  Instagram: {
-    color: 'bg-pink-500/10 text-pink-600 border-pink-500/20',
-    results: [
-      { type: 'Leads', count: 89, cpr: 9.50 },
-      { type: 'Messages', count: 178, cpr: 8.75 },
-      { type: 'Profile Visits', count: 2340, cpr: 0.65 },
-    ],
-    totalSpend: 1557.50,
-  },
-  TikTok: {
-    color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
-    results: [
-      { type: 'Leads', count: 42, cpr: 18.00 },
-      { type: 'Messages', count: 95, cpr: 15.00 },
-      { type: 'Profile Visits', count: 4200, cpr: 0.34 },
-    ],
-    totalSpend: 1425.00,
-  },
+type Campaign = {
+  id: string
+  name: string
+  platform: string
+  resultType: string
+  status: string
+  results: number
+  cpr: number
+  spend: number
+  impressions: number
+  clicks: number
+  ctr: number
+  adIds: string[]
 }
 
 const getPlatformColor = (platform: string) => {
-  switch (platform) {
-    case 'Facebook':
+  switch (platform?.toLowerCase()) {
+    case 'facebook':
       return 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-    case 'Google':
+    case 'google':
       return 'bg-red-500/10 text-red-600 border-red-500/20'
-    case 'Instagram':
+    case 'instagram':
       return 'bg-pink-500/10 text-pink-600 border-pink-500/20'
-    case 'TikTok':
+    case 'tiktok':
       return 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20'
     default:
-      return ''
+      return 'bg-gray-500/10 text-gray-600 border-gray-500/20'
   }
 }
 
-// Filter options
 const platforms = ['Facebook', 'Google', 'Instagram', 'TikTok']
 const statuses = ['active', 'paused', 'completed']
 const resultTypes = ['Leads', 'Messages', 'Profile Visits', 'Website Clicks', 'Phone Calls']
 
 export default function MediaBuyingPage() {
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [platformResultsData, setPlatformResultsData] = useState<Record<string, { color: string, results: { type: string, count: number, cpr: number }[], totalSpend: number }>>({})
+  const [isLoading, setIsLoading] = useState(true)
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
   const [isClient, setIsClient] = useState(false)
 
-  // Set date range only on client to avoid hydration mismatch
   useEffect(() => {
     setIsClient(true)
     setDateRange({
       from: subDays(new Date(), 30),
       to: new Date(),
     })
+  }, [])
+
+  useEffect(() => {
+    async function fetchCampaigns() {
+      const supabase = getSupabaseBrowser()
+      try {
+        const { data: cData, error: cErr } = await supabase.from('campaigns').select('*')
+        if (cErr) throw cErr
+
+        const { data: dData, error: dErr } = await supabase.from('campaign_daily_data').select('*')
+        if (dErr) throw dErr
+
+        const { data: adData, error: adErr } = await supabase.from('campaign_ad_ids').select('*')
+        if (adErr) throw adErr
+
+        const formattedCampaigns: Campaign[] = (cData || []).map(c => {
+          const cDaily = (dData || []).filter(d => d.campaign_id === c.id)
+          const cAds = (adData || []).filter(a => a.campaign_id === c.id).map(a => a.ad_id).filter(Boolean)
+
+          const spend = cDaily.reduce((acc, d) => acc + (d.spend || 0), 0)
+          const results = cDaily.reduce((acc, d) => acc + (d.results || 0), 0)
+          const impressions = cDaily.reduce((acc, d) => acc + (d.impressions || 0), 0)
+          const clicks = cDaily.reduce((acc, d) => acc + (d.clicks || 0), 0)
+
+          const cpr = results > 0 ? spend / results : 0
+          const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0
+
+          return {
+            id: c.id,
+            name: c.campaign_name,
+            platform: c.platform || 'Unknown',
+            resultType: c.result_type || 'Unknown',
+            status: c.status,
+            results,
+            cpr,
+            spend,
+            impressions,
+            clicks,
+            ctr,
+            adIds: cAds,
+          }
+        })
+
+        setCampaigns(formattedCampaigns)
+
+        // Aggregate platform data
+        const pData: Record<string, { color: string, results: { type: string, count: number, cpr: number }[], totalSpend: number }> = {}
+        formattedCampaigns.forEach(c => {
+          if (!pData[c.platform]) {
+            pData[c.platform] = {
+              color: getPlatformColor(c.platform),
+              results: [],
+              totalSpend: 0
+            }
+          }
+          pData[c.platform].totalSpend += c.spend
+
+          const existingResult = pData[c.platform].results.find(r => r.type === c.resultType)
+          if (existingResult) {
+            existingResult.count += c.results
+            // Note: CPR calculation needs overall spend for that result type.
+            // For simplicity, we keep a running total and approximate or skip exact CPR here.
+          } else {
+            pData[c.platform].results.push({ type: c.resultType, count: c.results, cpr: c.cpr })
+          }
+        })
+
+        setPlatformResultsData(pData)
+
+      } catch (error) {
+        console.error('Error fetching campaigns:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchCampaigns()
   }, [])
 
   // Filter states
@@ -278,6 +243,14 @@ export default function MediaBuyingPage() {
   const totalResults = filteredCampaigns.reduce((acc, c) => acc + c.results, 0)
   const avgCPR = totalResults > 0 ? totalSpend / totalResults : 0
   const activeCampaigns = filteredCampaigns.filter((c) => c.status === 'active').length
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-full">Loading campaigns...</div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>

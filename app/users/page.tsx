@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,89 +16,19 @@ import {
 } from '@/components/ui/table'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import Link from 'next/link'
+import { getSupabaseBrowser } from '@/lib/supabase/client'
+import { format } from 'date-fns'
 
-const users = [
-  {
-    id: 1,
-    name: 'Dr. Ahmed Hassan',
-    email: 'ahmed.hassan@densyc.com',
-    role: 'Clinic Owner',
-    branches: ['Main Branch', 'Downtown Branch', 'Uptown Branch', 'West Side Branch'],
-    status: 'active',
-    lastLogin: '2024-12-15 10:30',
-    permissions: 9,
-  },
-  {
-    id: 2,
-    name: 'Sara Ahmed',
-    email: 'sara.ahmed@densyc.com',
-    role: 'Receptionist',
-    branches: ['Main Branch'],
-    status: 'active',
-    lastLogin: '2024-12-15 09:15',
-    permissions: 4,
-  },
-  {
-    id: 3,
-    name: 'Mohamed Karim',
-    email: 'mohamed.karim@densyc.com',
-    role: 'Receptionist',
-    branches: ['Downtown Branch'],
-    status: 'active',
-    lastLogin: '2024-12-14 16:45',
-    permissions: 4,
-  },
-  {
-    id: 4,
-    name: 'Nour Hassan',
-    email: 'nour.hassan@densyc.com',
-    role: 'Moderator',
-    branches: ['Main Branch', 'Downtown Branch'],
-    status: 'active',
-    lastLogin: '2024-12-15 11:00',
-    permissions: 5,
-  },
-  {
-    id: 5,
-    name: 'Youssef Ali',
-    email: 'youssef.ali@densyc.com',
-    role: 'Media Buyer',
-    branches: ['Main Branch', 'Downtown Branch', 'Uptown Branch', 'West Side Branch'],
-    status: 'active',
-    lastLogin: '2024-12-15 08:45',
-    permissions: 5,
-  },
-  {
-    id: 6,
-    name: 'Fatima Mahmoud',
-    email: 'fatima.mahmoud@densyc.com',
-    role: 'Accountant',
-    branches: ['Main Branch', 'Downtown Branch', 'Uptown Branch', 'West Side Branch'],
-    status: 'active',
-    lastLogin: '2024-12-14 17:30',
-    permissions: 5,
-  },
-  {
-    id: 7,
-    name: 'Omar Ibrahim',
-    email: 'omar.ibrahim@densyc.com',
-    role: 'Content Creator',
-    branches: ['Main Branch', 'Downtown Branch'],
-    status: 'active',
-    lastLogin: '2024-12-14 14:20',
-    permissions: 3,
-  },
-  {
-    id: 8,
-    name: 'Layla Mostafa',
-    email: 'layla.mostafa@densyc.com',
-    role: 'Receptionist',
-    branches: ['Uptown Branch'],
-    status: 'inactive',
-    lastLogin: '2024-12-10 12:00',
-    permissions: 4,
-  },
-]
+type Profile = {
+  id: string
+  name: string
+  email: string
+  role: string
+  branches: string[]
+  status: string
+  updated_at: string
+  permissions: any
+}
 
 const roleColors: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   'Clinic Owner': 'default',
@@ -118,15 +49,50 @@ const roleDescriptions: Record<string, string> = {
 }
 
 export default function UsersPage() {
+  const [users, setUsers] = useState<Profile[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchUsers() {
+      const supabase = getSupabaseBrowser()
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+        setUsers(data || [])
+      } catch (error) {
+        console.error('Error fetching users:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchUsers()
+  }, [])
+
   const getInitials = (name: string) => {
+    if (!name) return 'U'
     return name
       .split(' ')
+      .filter(Boolean)
       .map((n) => n[0])
       .join('')
       .toUpperCase()
+      .substring(0, 2)
   }
 
   const roleCount = (role: string) => users.filter((u) => u.role === role).length
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-full">Loading users...</div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>
@@ -201,89 +167,109 @@ export default function UsersPage() {
           </Card>
         </div>
 
-        {/* Users Table */}
-        <Card className="border-border">
-          <CardHeader>
-            <CardTitle>Team Members</CardTitle>
-            <CardDescription>All users and their roles across branches</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border border-border overflow-hidden">
-              <Table>
-                <TableHeader className="bg-muted/50">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-foreground font-semibold">Name</TableHead>
-                    <TableHead className="text-foreground font-semibold">Email</TableHead>
-                    <TableHead className="text-foreground font-semibold">Role</TableHead>
-                    <TableHead className="text-foreground font-semibold">Branches</TableHead>
-                    <TableHead className="text-foreground font-semibold">Permissions</TableHead>
-                    <TableHead className="text-foreground font-semibold">Status</TableHead>
-                    <TableHead className="text-foreground font-semibold">Last Login</TableHead>
-                    <TableHead className="text-foreground font-semibold">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                              {getInitials(user.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <Link href={`/users/${user.id}`} className="font-medium text-foreground hover:underline">
-                            {user.name}
-                          </Link>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground flex items-center gap-2">
-                        <Mail className="w-4 h-4" />
-                        {user.email}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={roleColors[user.role] || 'outline'}>
-                          {user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1 max-w-[200px]">
-                          {user.branches.length === 4 ? (
-                            <Badge variant="outline" className="text-xs">All Branches</Badge>
-                          ) : user.branches.slice(0, 2).map((branch, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">{branch.replace(' Branch', '')}</Badge>
-                          ))}
-                          {user.branches.length > 2 && user.branches.length < 4 && (
-                            <Badge variant="outline" className="text-xs">+{user.branches.length - 2}</Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Shield className="w-3 h-3 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">{user.permissions} modules</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
-                          {user.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{user.lastLogin}</TableCell>
-                      <TableCell>
-                        <Link href={`/users/${user.id}`}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                        </Link>
-                      </TableCell>
+        {users.length === 0 ? (
+          <div className="text-center py-12 border rounded-lg border-dashed">
+            <h3 className="text-lg font-medium text-foreground mb-2">No users found</h3>
+            <p className="text-muted-foreground mb-4">No team members have registered yet.</p>
+            <Link href="/users/new">
+              <Button>Invite a User</Button>
+            </Link>
+          </div>
+        ) : (
+          <>
+            {/* Users Table */}
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle>Team Members</CardTitle>
+                <CardDescription>All users and their roles across branches</CardDescription>
+              </CardHeader>
+              <CardContent>
+              <div className="rounded-lg border border-border overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="text-foreground font-semibold">Name</TableHead>
+                      <TableHead className="text-foreground font-semibold">Email</TableHead>
+                      <TableHead className="text-foreground font-semibold">Role</TableHead>
+                      <TableHead className="text-foreground font-semibold">Branches</TableHead>
+                      <TableHead className="text-foreground font-semibold">Permissions</TableHead>
+                      <TableHead className="text-foreground font-semibold">Status</TableHead>
+                      <TableHead className="text-foreground font-semibold">Last Login</TableHead>
+                      <TableHead className="text-foreground font-semibold">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                                {getInitials(user.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <Link href={`/users/${user.id}`} className="font-medium text-foreground hover:underline">
+                              {user.name || 'Unnamed User'}
+                            </Link>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-4 h-4" />
+                            {user.email || 'No email'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={roleColors[user.role] || 'outline'}>
+                            {user.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {(!user.branches || user.branches.length === 0) ? (
+                              <span className="text-xs text-muted-foreground">None</span>
+                            ) : user.branches.length >= 4 ? (
+                              <Badge variant="outline" className="text-xs">All Branches</Badge>
+                            ) : user.branches.slice(0, 2).map((branch, i) => (
+                              <Badge key={i} variant="outline" className="text-xs">{branch.replace(' Branch', '')}</Badge>
+                            ))}
+                            {user.branches && user.branches.length > 2 && user.branches.length < 4 && (
+                              <Badge variant="outline" className="text-xs">+{user.branches.length - 2}</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Shield className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {user.permissions && typeof user.permissions === 'object' ? Object.keys(user.permissions).length : 0} modules
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
+                            {user.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {user.updated_at ? format(new Date(user.updated_at), 'MMM dd, yyyy') : 'Never'}
+                        </TableCell>
+                        <TableCell>
+                          <Link href={`/users/${user.id}`}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+          </>
+        )}
       </div>
     </DashboardLayout>
   )
