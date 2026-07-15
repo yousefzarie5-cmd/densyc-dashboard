@@ -359,10 +359,18 @@ begin
       -- Clean old mock data to keep script idempotent
       delete from public.patients where user_id = v_id;
       delete from public.campaigns where user_id = v_id;
+      delete from public.branches where user_id = v_id;
       delete from public.clinics where user_id = v_id;
 
       -- Add mock clinic
       insert into public.clinics (user_id, name, city) values (v_id, 'Demo Clinic', 'Cairo');
+
+      -- Add mock branches
+      insert into public.branches (user_id, name, city) values
+        (v_id, 'Main Branch', 'Cairo'),
+        (v_id, 'Downtown Branch', 'Alexandria'),
+        (v_id, 'Uptown Branch', 'Giza'),
+        (v_id, 'West Side Branch', 'Luxor');
 
       -- Add mock patients
       insert into public.patients (user_id, date, name, phone_number, source, interest, city, nearest_branch, booking_status, amount_paid, quotation_amount, receptionist_name, show_no_show)

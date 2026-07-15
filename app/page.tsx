@@ -22,6 +22,7 @@ export default function Page() {
 
   const [patients, setPatients] = useState<any[]>([])
   const [dailyData, setDailyData] = useState<any[]>([])
+  const [branches, setBranches] = useState<any[]>([])
 
   useEffect(() => {
     setIsClient(true)
@@ -32,12 +33,14 @@ export default function Page() {
 
     const fetchData = async () => {
       const supabase = getSupabaseBrowser()
-      const [{ data: p }, { data: d }] = await Promise.all([
+      const [{ data: p }, { data: d }, { data: b }] = await Promise.all([
         supabase.from('patients').select('*'),
         supabase.from('campaign_daily_data').select('spend'),
+        supabase.from('branches').select('*'),
       ])
       setPatients(p || [])
       setDailyData(d || [])
+      setBranches(b || [])
     }
     fetchData()
   }, [])
@@ -64,7 +67,10 @@ export default function Page() {
 
   // Revenue distribution by branch (from patients' nearest_branch)
   const branchPerformance = useMemo(() => {
-    const names = ['Main Branch', 'Downtown Branch', 'Uptown Branch', 'West Side Branch']
+    const names = branches.length > 0 
+      ? branches.map(b => b.name)
+      : [] // No branches to show
+
     const totals = names.map((name) => ({
       name,
       revenue: patients
@@ -73,7 +79,7 @@ export default function Page() {
     }))
     const max = Math.max(1, ...totals.map((t) => t.revenue))
     return totals.map((t) => ({ name: t.name, width: Math.round((t.revenue / max) * 100) }))
-  }, [patients])
+  }, [patients, branches])
 
   return (
     <DashboardLayout>
