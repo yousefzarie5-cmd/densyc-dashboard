@@ -5,7 +5,7 @@ import { createContext, useContext, useState, ReactNode } from 'react'
 export const ALL_BRANCHES = { id: 0, name: 'All Branches', logo: 'ALL', branches: [] as string[] }
 
 export type Clinic = {
-  id: number
+  id: string | number
   name: string
   logo: string
   branches: string[]

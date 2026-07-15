@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { useClinic, ALL_BRANCHES, type Clinic } from '@/components/clinic-context'
 import { useAuth, type Permission } from '@/components/auth-context'
 import { getSupabaseBrowser } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -88,24 +89,49 @@ export function Sidebar() {
   const [editClinicName, setEditClinicName] = useState('')
   const [editClinicLogo, setEditClinicLogo] = useState('')
 
-  const handleAddClinic = () => {
+  const handleAddClinic = async () => {
     if (newClinicName && newClinicLogo) {
-      const newClinic = {
-        id: Date.now(),
+      const supabase = getSupabaseBrowser()
+      const { data, error } = await supabase.from('clinics').insert([{
         name: newClinicName,
-        logo: newClinicLogo.toUpperCase().slice(0, 3),
-        branches: [],
+        city: 'TBD' // Adding a placeholder since city might not be required but is standard in schema
+      }]).select()
+
+      if (error) {
+        toast.error('Failed to create clinic: ' + error.message)
+        return
       }
-      setClinics([...clinics, newClinic])
-      setSelectedClinic(newClinic)
-      setNewClinicName('')
-      setNewClinicLogo('')
-      setAddClinicOpen(false)
+
+      if (data && data.length > 0) {
+        const c = data[0]
+        const newClinic = {
+          id: c.id,
+          name: c.name,
+          logo: c.name.split(' ').map((w: string) => w[0]).join('').substring(0, 3).toUpperCase(),
+          branches: [],
+        }
+        setClinics([...clinics, newClinic])
+        setSelectedClinic(newClinic)
+        setNewClinicName('')
+        setNewClinicLogo('')
+        setAddClinicOpen(false)
+        toast.success('Clinic created successfully')
+      }
     }
   }
 
-  const handleEditClinic = () => {
+  const handleEditClinic = async () => {
     if (clinicToEdit && editClinicName && editClinicLogo) {
+      const supabase = getSupabaseBrowser()
+      const { error } = await supabase.from('clinics').update({
+        name: editClinicName
+      }).eq('id', clinicToEdit.id)
+
+      if (error) {
+        toast.error('Failed to update clinic: ' + error.message)
+        return
+      }
+
       const updatedClinics = clinics.map(c => 
         c.id === clinicToEdit.id 
           ? { ...c, name: editClinicName, logo: editClinicLogo.toUpperCase().slice(0, 3) }
@@ -117,6 +143,7 @@ export function Sidebar() {
       }
       setEditClinicOpen(false)
       setClinicToEdit(null)
+      toast.success('Clinic updated successfully')
     }
   }
 
