@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, Users, GitBranch, FileText, Settings, Menu, X, Megaphone, ChevronDown, Building2, Check, Plus, Pencil, LayoutGrid } from 'lucide-react'
+import { BarChart3, Users, GitBranch, FileText, Settings, Menu, X, Megaphone, ChevronDown, Building2, Check, Plus, Pencil, Trash2, LayoutGrid } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useClinic, ALL_BRANCHES, type Clinic } from '@/components/clinic-context'
@@ -147,6 +147,28 @@ export function Sidebar() {
     }
   }
 
+  const handleDeleteClinic = async (clinicId: string | number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!window.confirm('Are you sure you want to delete this clinic? All associated branches, patients, and data will be permanently deleted.')) {
+      return
+    }
+
+    const supabase = getSupabaseBrowser()
+    const { error } = await supabase.from('clinics').delete().eq('id', clinicId)
+
+    if (error) {
+      toast.error('Failed to delete clinic: ' + error.message)
+      return
+    }
+
+    const updatedClinics = clinics.filter(c => c.id !== clinicId)
+    setClinics(updatedClinics)
+    if (selectedClinic.id === clinicId) {
+      setSelectedClinic(ALL_BRANCHES)
+    }
+    toast.success('Clinic deleted successfully')
+  }
+
   const openEditDialog = (clinic: Clinic, e: React.MouseEvent) => {
     e.stopPropagation()
     setClinicToEdit(clinic)
@@ -248,6 +270,12 @@ export function Sidebar() {
                         className="p-1 rounded hover:bg-muted"
                       >
                         <Pencil className="w-3 h-3 text-muted-foreground" />
+                      </button>
+                      <button 
+                        onClick={(e) => handleDeleteClinic(clinic.id, e)}
+                        className="p-1 rounded hover:bg-destructive/10"
+                      >
+                        <Trash2 className="w-3 h-3 text-destructive" />
                       </button>
                       {selectedClinic.id === clinic.id && (
                         <Check className="w-4 h-4 text-primary" />
