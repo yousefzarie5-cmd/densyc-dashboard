@@ -321,34 +321,39 @@ begin
       ('blank@demo.com', 'Blank Account', 'Clinic Owner')
     ) as t(email, fullname, role)
   loop
-    if exists (select 1 from auth.users where email = rec.email) then
-      continue;
+    select id into v_id from auth.users where email = rec.email;
+
+    if v_id is null then
+      v_id := gen_random_uuid();
+
+      insert into auth.users (
+        instance_id, id, aud, role, email, encrypted_password,
+        email_confirmed_at, created_at, updated_at,
+        raw_app_meta_data, raw_user_meta_data,
+        confirmation_token, recovery_token, email_change_token_new, email_change
+      ) values (
+        '00000000-0000-0000-0000-000000000000', v_id, 'authenticated', 'authenticated',
+        rec.email, extensions.crypt('Password123!', extensions.gen_salt('bf')),
+        now(), now(), now(),
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        jsonb_build_object('name', rec.fullname, 'role', rec.role),
+        '', '', '', ''
+      );
+
+      insert into auth.identities (
+        id, user_id, provider_id, identity_data, provider,
+        last_sign_in_at, created_at, updated_at
+      ) values (
+        gen_random_uuid(), v_id, v_id::text,
+        jsonb_build_object('sub', v_id::text, 'email', rec.email),
+        'email', now(), now(), now()
+      );
+    else
+      -- Ensure existing user has correct metadata
+      update auth.users
+      set raw_user_meta_data = jsonb_build_object('name', rec.fullname, 'role', rec.role)
+      where id = v_id;
     end if;
-
-    v_id := gen_random_uuid();
-
-    insert into auth.users (
-      instance_id, id, aud, role, email, encrypted_password,
-      email_confirmed_at, created_at, updated_at,
-      raw_app_meta_data, raw_user_meta_data,
-      confirmation_token, recovery_token, email_change_token_new, email_change
-    ) values (
-      '00000000-0000-0000-0000-000000000000', v_id, 'authenticated', 'authenticated',
-      rec.email, extensions.crypt('Password123!', extensions.gen_salt('bf')),
-      now(), now(), now(),
-      '{"provider":"email","providers":["email"]}'::jsonb,
-      jsonb_build_object('name', rec.fullname, 'role', rec.role),
-      '', '', '', ''
-    );
-
-    insert into auth.identities (
-      id, user_id, provider_id, identity_data, provider,
-      last_sign_in_at, created_at, updated_at
-    ) values (
-      gen_random_uuid(), v_id, v_id::text,
-      jsonb_build_object('sub', v_id::text, 'email', rec.email),
-      'email', now(), now(), now()
-    );
 
     insert into public.profiles (id, name, email, role, status)
     values (v_id, rec.fullname, rec.email, rec.role::user_role, 'active')
