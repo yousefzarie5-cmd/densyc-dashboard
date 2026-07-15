@@ -165,13 +165,35 @@ export default function PatientsPage() {
           return true
       }
     })
-  }, [filterBy, filterValue])
+  }, [patients, filterBy, filterValue])
 
   const clearFilters = () => {
     setFilterBy('')
     setFilterValue('')
     setShowFilterPanel(false)
   }
+
+  // Live stats computed from all patients (not the filtered subset)
+  const stats = useMemo(() => {
+    const total = patients.length
+    const booked = patients.filter((p) => p.bookingStatus === 'Booked')
+    const pending = patients.filter((p) => p.bookingStatus === 'Pending').length
+    const shows = booked.filter((p) => p.showNoShow === 'Show').length
+    const now = new Date()
+    const revenueThisMonth = patients.reduce((sum, p) => {
+      const d = p.date ? new Date(p.date) : null
+      const inMonth = d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+      return sum + (inMonth ? Number(p.amountPaid) || 0 : 0)
+    }, 0)
+    return {
+      total,
+      booked: booked.length,
+      pending,
+      conversion: total ? Math.round((booked.length / total) * 100) : 0,
+      showRate: booked.length ? Math.round((shows / booked.length) * 100) : 0,
+      revenueThisMonth,
+    }
+  }, [patients])
 
   return (
     <DashboardLayout>
@@ -302,7 +324,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">0</div>
+              <div className="text-2xl font-bold text-foreground">{stats.total}</div>
               <p className="text-xs text-muted-foreground mt-1">All time</p>
             </CardContent>
           </Card>
@@ -311,8 +333,8 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Booked</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">0</div>
-              <p className="text-xs text-muted-foreground mt-1">0% conversion</p>
+              <div className="text-2xl font-bold text-foreground">{stats.booked}</div>
+              <p className="text-xs text-muted-foreground mt-1">{stats.conversion}% conversion</p>
             </CardContent>
           </Card>
           <Card className="border-border">
@@ -320,7 +342,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">0</div>
+              <div className="text-2xl font-bold text-foreground">{stats.pending}</div>
               <p className="text-xs text-muted-foreground mt-1">In follow-up</p>
             </CardContent>
           </Card>
@@ -329,7 +351,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Show Rate</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">0%</div>
+              <div className="text-2xl font-bold text-foreground">{stats.showRate}%</div>
               <p className="text-xs text-muted-foreground mt-1">Of booked</p>
             </CardContent>
           </Card>
@@ -338,7 +360,7 @@ export default function PatientsPage() {
               <CardTitle className="text-sm font-medium">Revenue</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">$0</div>
+              <div className="text-2xl font-bold text-foreground">${stats.revenueThisMonth.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground mt-1">This month</p>
             </CardContent>
           </Card>

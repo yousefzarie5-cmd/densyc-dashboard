@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { DashboardLayout } from '@/components/dashboard-layout'
+import { getSupabaseBrowser } from '@/lib/supabase/client'
 import { useClinic } from '@/components/clinic-context'
 import { useAuth } from '@/components/auth-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,13 +20,60 @@ export default function Page() {
   const [isClient, setIsClient] = useState(false)
   const { isAllBranches } = useClinic()
 
+  const [patients, setPatients] = useState<any[]>([])
+  const [dailyData, setDailyData] = useState<any[]>([])
+
   useEffect(() => {
     setIsClient(true)
     setDateRange({
       from: subDays(new Date(), 30),
       to: new Date(),
     })
+
+    const fetchData = async () => {
+      const supabase = getSupabaseBrowser()
+      const [{ data: p }, { data: d }] = await Promise.all([
+        supabase.from('patients').select('*'),
+        supabase.from('campaign_daily_data').select('spend'),
+      ])
+      setPatients(p || [])
+      setDailyData(d || [])
+    }
+    fetchData()
   }, [])
+
+  const kpis = useMemo(() => {
+    const total = patients.length
+    const booked = patients.filter((p) => p.booking_status === 'Booked').length
+    const now = new Date()
+    const thirtyAgo = subDays(now, 30)
+    const newPatients = patients.filter((p) => {
+      const d = p.date || p.created_at
+      return d && new Date(d) >= thirtyAgo
+    }).length
+    const revenue = patients.reduce((s, p) => s + (Number(p.amount_paid) || 0), 0)
+    const spend = dailyData.reduce((s, d) => s + (Number(d.spend) || 0), 0)
+    return {
+      total,
+      conversion: total ? Math.round((booked / total) * 100) : 0,
+      newPatients,
+      revenue,
+      spend,
+    }
+  }, [patients, dailyData])
+
+  // Revenue distribution by branch (from patients' nearest_branch)
+  const branchPerformance = useMemo(() => {
+    const names = ['Main Branch', 'Downtown Branch', 'Uptown Branch', 'West Side Branch']
+    const totals = names.map((name) => ({
+      name,
+      revenue: patients
+        .filter((p) => p.nearest_branch === name)
+        .reduce((s, p) => s + (Number(p.amount_paid) || 0), 0),
+    }))
+    const max = Math.max(1, ...totals.map((t) => t.revenue))
+    return totals.map((t) => ({ name: t.name, width: Math.round((t.revenue / max) * 100) }))
+  }, [patients])
 
   return (
     <DashboardLayout>
@@ -86,7 +134,7 @@ export default function Page() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">0</div>
+              <div className="text-2xl font-bold text-foreground">{kpis.total}</div>
               <p className="text-xs text-muted-foreground mt-1">Total registered patients</p>
             </CardContent>
           </Card>
@@ -99,8 +147,8 @@ export default function Page() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">0%</div>
-              <p className="text-xs text-muted-foreground mt-1">No data</p>
+              <div className="text-2xl font-bold text-foreground">{kpis.conversion}%</div>
+              <p className="text-xs text-muted-foreground mt-1">Booked of total leads</p>
             </CardContent>
           </Card>
 
@@ -112,8 +160,8 @@ export default function Page() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">0</div>
-              <p className="text-xs text-muted-foreground mt-1">In selected period</p>
+              <div className="text-2xl font-bold text-foreground">{kpis.newPatients}</div>
+              <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
             </CardContent>
           </Card>
 
@@ -125,7 +173,7 @@ export default function Page() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">$0</div>
+              <div className="text-2xl font-bold text-foreground">${kpis.spend.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground mt-1">Ad spend in period</p>
             </CardContent>
           </Card>
@@ -138,8 +186,8 @@ export default function Page() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">$0</div>
-              <p className="text-xs text-muted-foreground mt-1">No data</p>
+              <div className="text-2xl font-bold text-foreground">${kpis.revenue.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground mt-1">Collected to date</p>
             </CardContent>
           </Card>
         </div>
@@ -163,12 +211,7 @@ export default function Page() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
-                {[
-                  { name: 'Main Branch', width: 0 },
-                  { name: 'Downtown Branch', width: 0 },
-                  { name: 'Uptown Branch', width: 0 },
-                  { name: 'West Side Branch', width: 0 },
-                ].map((branch) => (
+                {branchPerformance.map((branch) => (
                   <div key={branch.name} className="flex items-center justify-between">
                     <span className="text-sm font-medium">{branch.name}</span>
                     <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import {
   Table,
   TableBody,
@@ -10,10 +11,32 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react'
-const activities: any[] = []
+import { getSupabaseBrowser } from '@/lib/supabase/client'
 
 export function RecentActivityTable() {
-  const displayActivities = activities
+  const [displayActivities, setDisplayActivities] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchActivity = async () => {
+      const supabase = getSupabaseBrowser()
+      const { data } = await supabase
+        .from('reservations')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(6)
+      setDisplayActivities(
+        (data || []).map((r: any) => ({
+          id: r.id,
+          patient: r.patient,
+          action: r.type ? `Reservation - ${r.type}` : 'Reservation',
+          clinic: r.clinic || '-',
+          status: r.status,
+          date: [r.date, r.time].filter(Boolean).join(' '),
+        }))
+      )
+    }
+    fetchActivity()
+  }, [])
 
   const getStatusIcon = (status: string) => {
     switch (status) {
