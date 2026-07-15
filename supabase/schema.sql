@@ -211,6 +211,18 @@ returns boolean language sql stable security definer set search_path = public as
 $$;
 
 -- =========================================================
+-- Add user_id column to existing tables (if they exist)
+-- =========================================================
+do $$
+declare t text;
+begin
+  foreach t in array array['clinics','branches','patients','campaigns','campaign_ad_ids','campaign_daily_data','reservations']
+  loop
+    execute format('alter table public.%I add column if not exists user_id uuid default auth.uid() references auth.users(id) on delete cascade;', t);
+  end loop;
+end $$;
+
+-- =========================================================
 -- Row Level Security
 -- =========================================================
 alter table public.clinics enable row level security;
