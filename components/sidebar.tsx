@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useClinic, ALL_BRANCHES, type Clinic } from '@/components/clinic-context'
 import { useAuth, type Permission } from '@/components/auth-context'
+import { getSupabaseBrowser } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -52,10 +53,30 @@ const initialClinics = [
 export function Sidebar() {
   const pathname = usePathname()
   const [open, setOpen] = useState(true)
-  const [clinics, setClinics] = useState(initialClinics)
+  const [clinics, setClinics] = useState<any[]>([])
   const { selectedClinic, setSelectedClinic } = useClinic()
   const { hasPermission } = useAuth()
   
+  useEffect(() => {
+    async function fetchClinics() {
+      const supabase = getSupabaseBrowser()
+      const { data } = await supabase.from('clinics').select('*')
+      if (data && data.length > 0) {
+        // Map database clinics to the expected sidebar format
+        const mappedClinics = data.map(c => ({
+          id: c.id,
+          name: c.name,
+          logo: c.name.split(' ').map((w: string) => w[0]).join('').substring(0, 3).toUpperCase(),
+          branches: []
+        }))
+        setClinics(mappedClinics)
+      } else {
+        setClinics([])
+      }
+    }
+    fetchClinics()
+  }, [])
+
   // Dialog states
   const [addClinicOpen, setAddClinicOpen] = useState(false)
   const [editClinicOpen, setEditClinicOpen] = useState(false)
