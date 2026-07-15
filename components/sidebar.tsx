@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { BarChart3, Users, GitBranch, FileText, Settings, Menu, X, Megaphone, ChevronDown, Building2, Check, Plus, Pencil, LayoutGrid } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useClinic, ALL_BRANCHES, type Clinic } from '@/components/clinic-context'
 import { useAuth, type Permission } from '@/components/auth-context'
