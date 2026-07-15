@@ -43,9 +43,11 @@ export function NotificationsDropdown() {
         setNotifications(data)
       }
 
+      if (!mounted) return
+
       // Subscribe to realtime updates
       channel = supabase
-        .channel('realtime-notifications')
+        .channel(`realtime-notifications-${user.id}`)
         .on(
           'postgres_changes',
           {

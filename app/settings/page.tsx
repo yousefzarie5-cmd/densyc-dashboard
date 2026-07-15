@@ -8,11 +8,39 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Save, Bell, Lock, Users, Zap } from 'lucide-react'
+import { Save, Bell, Lock, Users, Zap, Trash2, Loader2 } from 'lucide-react'
 import { useAuth, type Role, type Permission } from '@/components/auth-context'
+import { useState } from 'react'
+import { getSupabaseBrowser } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 export default function SettingsPage() {
-  const { permissions, updatePermissions } = useAuth()
+  const { permissions, updatePermissions, user } = useAuth()
+  const [clearingData, setClearingData] = useState(false)
+  const supabase = getSupabaseBrowser()
+
+  const handleClearData = async () => {
+    if (!confirm('Are you sure you want to clear all your data? This action cannot be undone.')) return
+    setClearingData(true)
+    try {
+      if (!user) throw new Error("Not authenticated")
+
+      // RLS (user_id = auth.uid()) ensures we only delete this account's records
+      await Promise.all([
+        supabase.from('patients').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+        supabase.from('campaigns').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+        supabase.from('clinics').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+        supabase.from('branches').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      ])
+      
+      toast.success('All your data has been successfully cleared.')
+    } catch (error) {
+      toast.error('Failed to clear data: ' + (error as Error).message)
+    } finally {
+      setClearingData(false)
+    }
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -129,6 +157,29 @@ export default function SettingsPage() {
                   <Save className="w-4 h-4 mr-2" />
                   Save Changes
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Danger Zone */}
+            <Card className="border-border border-destructive/50">
+              <CardHeader>
+                <CardTitle className="text-destructive flex items-center gap-2">
+                  <Trash2 className="w-5 h-5" />
+                  Danger Zone
+                </CardTitle>
+                <CardDescription>Irreversible and destructive actions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between py-2 gap-4">
+                  <div>
+                    <p className="font-medium text-foreground">Clear All Data</p>
+                    <p className="text-sm text-muted-foreground">Permanently delete all patients, campaigns, clinics, and branches associated with your account.</p>
+                  </div>
+                  <Button variant="destructive" onClick={handleClearData} disabled={clearingData}>
+                    {clearingData ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                    {clearingData ? 'Clearing...' : 'Clear Data'}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
