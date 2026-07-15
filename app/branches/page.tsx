@@ -5,7 +5,7 @@ import { DashboardLayout } from '@/components/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, MapPin, Phone, Filter, Download, CalendarIcon, Pencil } from 'lucide-react'
+import { Plus, MapPin, Phone, Filter, Download, CalendarIcon, Pencil, Trash2 } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -80,6 +80,22 @@ export default function BranchesPage() {
 
     fetchBranches()
   }, [])
+
+  const handleDeleteBranch = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete the branch "${name}"?`)) {
+      return
+    }
+
+    const supabase = getSupabaseBrowser()
+    try {
+      const { error } = await supabase.from('branches').delete().eq('id', id)
+      if (error) throw error
+      setBranches(branches.filter(b => b.id !== id))
+    } catch (error) {
+      console.error('Error deleting branch:', error)
+      alert('Failed to delete branch. Please try again.')
+    }
+  }
 
   const totalPatients = branches.reduce((acc, b) => acc + b.patients_count, 0)
   const totalStaff = branches.reduce((acc, b) => acc + b.staff_count, 0)
@@ -222,6 +238,17 @@ export default function BranchesPage() {
                             <Pencil className="w-4 h-4" />
                           </Button>
                         </Link>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            handleDeleteBranch(branch.id, branch.name)
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
@@ -285,11 +312,21 @@ export default function BranchesPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Link href={`/branches/${branch.id}`}>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <Pencil className="w-4 h-4" />
+                            <div className="flex items-center gap-2">
+                              <Link href={`/branches/${branch.id}`}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                              </Link>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleDeleteBranch(branch.id, branch.name)}
+                              >
+                                <Trash2 className="w-4 h-4" />
                               </Button>
-                            </Link>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
